@@ -15,7 +15,7 @@ class Host:
         """
         self.assigned_room = room_number
         self.status = "accommodated"
-        print(f"The guest {self.host_id} stayed in a room {room_number}.")
+        print(f"\nThe guest {self.host_id} stayed in a room {room_number}.")
 
     def check_out(self):
         """
@@ -24,6 +24,6 @@ class Host:
         room, and updates the guest's status to "left."
         :return: None
         """
-        print(f"The guest {self.host_id} is leaving a room {self.assigned_room}.")
+        print(f"\nThe guest {self.host_id} is leaving a room {self.assigned_room}.")
         self.assigned_room = None
         self.status = "left"

@@ -24,7 +24,7 @@ class HostProducer(threading.Thread):
             new_host = Host(self.host_id, stay_time=random.randint(5, 10))
 
             self.host_queue.put(new_host)
-            print(f"The guest {self.host_id} came and waiting in queue")
+            print(f"\nThe guest {self.host_id} came and waiting in queue")
 
             self.host_id += 1
 
@@ -67,7 +67,7 @@ class Receptionist(threading.Thread):
                 host.check_in(room_number)
                 threading.Thread(target=self.stay_and_checkout, args=(host, self.hotel)).start()
             else:
-                print(f"The guest {host.host_id} leaving, hotel is full.")
+                print(f"\nThe guest {host.host_id} leaving, hotel is full.")
 
             self.host_queue.task_done()
 
@@ -103,7 +103,5 @@ class RoomsMonitor(threading.Thread):
             with self.hotel.lock:
                 free = len(self.hotel.free_rooms)
 
-            print("---------------------------------------------")
-            print(f"Available rooms : {free}")
-            print("---------------------------------------------")
+            print(f"\nAvailable rooms : {free}")
             time.sleep(self.interval)
