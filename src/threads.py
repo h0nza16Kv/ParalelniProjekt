@@ -1,6 +1,6 @@
 import threading
 import time
-from host import Host
+from src.host import Host
 import random
 from queue import Empty
 
