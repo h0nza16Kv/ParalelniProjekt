@@ -1,7 +1,7 @@
 import time
 from queue import Queue
 from hotel import Hotel
-from threads import Receptionist, RoomsMonitor, HostProducer
+from threads import Receptionist, RoomsMonitor, HostProducer, Cleaner
 
 def main():
     hotel = Hotel(4)
@@ -13,11 +13,13 @@ def main():
         Receptionist(hotel, queue)
         for i in range(2)
     ]
+    cleaner = Cleaner(hotel, cleaning_time=5)
     monitor = RoomsMonitor(hotel, interval=5)
 
     producer.start()
     for r in receptionists:
         r.start()
+    cleaner.start()
     monitor.start()
 
     try:
@@ -29,6 +31,7 @@ def main():
         producer.running = False
         for r in receptionists:
             r.running = False
+        cleaner.running = False
         monitor.running = False
 
         for i in receptionists:
@@ -37,6 +40,7 @@ def main():
         producer.join()
         for r in receptionists:
             r.join()
+        cleaner.join()
         monitor.join()
 
         print("Shutdown complete.")

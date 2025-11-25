@@ -1,6 +1,6 @@
 import threading
 import time
-from src.host import Host
+from host import Host
 import random
 from queue import Empty
 
@@ -101,7 +101,38 @@ class RoomsMonitor(threading.Thread):
         """
         while self.running:
             with self.hotel.lock:
-                free = len(self.hotel.free_rooms)
+                free = sum(1 for status in self.hotel.rooms.values() if status == 'free')
+                occupied = sum(1 for status in self.hotel.rooms.values() if status == 'occupied')
+                cleaning = sum(1 for status in self.hotel.rooms.values() if status == 'cleaning')
 
-            print(f"\nAvailable rooms : {free}")
+            print(f"\n--- HOTEL STATUS --- Free: {free} | Occupied: {occupied} | Cleaning: {cleaning}")
             time.sleep(self.interval)
+
+
+class Cleaner(threading.Thread):
+    def __init__(self, hotel, cleaning_time=5):
+        super().__init__()
+        self.hotel = hotel
+        self.running = True
+        self.cleaning_time = cleaning_time
+
+    def run(self):
+        """
+        Main loop for the cleaner thread.
+        The cleaner cyclically attempts to find a room in the 'cleaning' state.
+        :return: None
+        """
+        while self.running:
+            time.sleep(1)
+
+            room_to_clean = None
+            with self.hotel.lock:
+                cleaning_rooms = [r for r, status in self.hotel.rooms.items() if status == 'cleaning']
+                if cleaning_rooms:
+                    room_to_clean = cleaning_rooms[0]
+
+            if room_to_clean:
+                print(f"Cleaner starts cleaning room {room_to_clean}. Estimated time: {self.cleaning_time}s")
+                time.sleep(self.cleaning_time)
+
+                self.hotel.finish_cleaning(room_to_clean)
