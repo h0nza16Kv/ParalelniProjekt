@@ -2,15 +2,17 @@ import time
 from queue import Queue
 from hotel import Hotel
 from threads import Receptionist, RoomsMonitor, HostProducer, Cleaner
+from concurrent.futures import ThreadPoolExecutor
 
 def main():
     hotel = Hotel(4)
     queue = Queue()
 
     producer = HostProducer(queue, interval=3)
+    executor = ThreadPoolExecutor(max_workers=5)
 
     receptionists = [
-        Receptionist(hotel, queue)
+        Receptionist(hotel, queue, executor)
         for i in range(2)
     ]
     cleaner = Cleaner(hotel, cleaning_time=5)
@@ -36,6 +38,8 @@ def main():
 
         for i in receptionists:
             queue.put(None)
+
+        executor.shutdown(wait=True)
 
         producer.join()
         for r in receptionists:

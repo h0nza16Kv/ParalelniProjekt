@@ -1,61 +1,68 @@
 import unittest
 import threading
 from queue import Queue
+from concurrent.futures import ThreadPoolExecutor
 
 from src.hotel import Hotel
 from src.host import Host
 from src.threads import Receptionist
+from unittest.mock import patch
 
 
 class TestHotelSystem(unittest.TestCase):
 
+    def setUp(self):
+        self.executor = ThreadPoolExecutor(max_workers=1)
+
+    def tearDown(self):
+        self.executor.shutdown(wait=False)
+
     def test_hotel_initialization(self):
-        """Test initial state of the Hotel."""
+        """Test initial state of the Hotel (using rooms dictionary)."""
         hotel = Hotel(num_rooms=3)
         self.assertEqual(hotel.num_rooms, 3)
-        self.assertEqual(len(hotel.free_rooms), 3)
-        self.assertListEqual(hotel.free_rooms, [1, 2, 3])
+        self.assertEqual(len(hotel.rooms), 3)
+        # Ověří, že všechny pokoje mají stav 'free'
+        self.assertTrue(all(status == 'free' for status in hotel.rooms.values()))
 
     def test_reserve_and_release_room(self):
-        """Test basic reserve and release operations."""
+        """Test basic reserve and release operations (checking room states)."""
         hotel = Hotel(num_rooms=1)
         host1 = Host(1, 5)
 
+        # Rezervace
         room1 = hotel.reserve_room(host1)
         self.assertEqual(room1, 1)
-        self.assertEqual(len(hotel.free_rooms), 0)
+        self.assertEqual(hotel.rooms[1], 'occupied')
 
         room2 = hotel.reserve_room(host1)
         self.assertIsNone(room2)
 
         hotel.release_room(room1)
-        self.assertEqual(len(hotel.free_rooms), 1)
-        self.assertIn(1, hotel.free_rooms)
+        self.assertEqual(hotel.rooms[1], 'cleaning')
+
+        room3 = hotel.reserve_room(host1)
+        self.assertIsNone(room3)
 
     def test_release_room_safety(self):
         """
-        Test that release_room prevents adding a room that is already in free_rooms.
-        This tests the integrity of the free_rooms list.
+        Test that releasing a room correctly sets the state to 'cleaning'.
+        (Původní test kontroloval integritu seznamu free_rooms, zde kontrolujeme stav).
         """
         hotel = Hotel(num_rooms=2)
 
-        self.assertEqual(len(hotel.free_rooms), 2)
 
-        room_reserved = hotel.reserve_room(Host(1, 1))
-        self.assertEqual(len(hotel.free_rooms), 1)
-
-        hotel.release_room(room_reserved)
-        self.assertEqual(len(hotel.free_rooms), 2)
-        self.assertIn(room_reserved, hotel.free_rooms)
+        room_reserved = hotel.reserve_room(Host(1, 1))  # např. 1
+        self.assertEqual(hotel.rooms[room_reserved], 'occupied')
 
         hotel.release_room(room_reserved)
+        self.assertEqual(hotel.rooms[room_reserved], 'cleaning')
 
-        self.assertEqual(len(hotel.free_rooms), 2)
-        self.assertEqual(len(set(hotel.free_rooms)), 2)
-
+        hotel.release_room(room_reserved)
+        self.assertEqual(hotel.rooms[room_reserved], 'cleaning')
 
     def test_thread_safe_reservation(self):
-        """Test thread-safe room reservation under contention."""
+        """Test thread-safe room reservation under contention (using rooms dictionary)."""
         NUM_ROOMS = 5
         NUM_THREADS = 10
         hotel = Hotel(NUM_ROOMS)
@@ -80,6 +87,7 @@ class TestHotelSystem(unittest.TestCase):
         self.assertEqual(len(set(reserved_rooms)), NUM_ROOMS)
         for room in reserved_rooms:
             self.assertTrue(1 <= room <= NUM_ROOMS)
+            self.assertEqual(hotel.rooms[room], 'occupied')
 
     def test_receptionist_check_in_full_hotel(self):
         """
@@ -87,23 +95,29 @@ class TestHotelSystem(unittest.TestCase):
         """
         hotel = Hotel(num_rooms=1)
         host_queue = Queue()
-        receptionist = Receptionist(hotel, host_queue)
+        receptionist = Receptionist(hotel, host_queue, self.executor)
 
         host1 = Host(1, 10)
         host_queue.put(host1)
-        host_queue.put(None)
 
-        receptionist.run()
-        self.assertEqual(len(hotel.free_rooms), 0)
+        with patch.object(receptionist, 'stay_and_checkout'):
+            host_queue.put(None)
+            receptionist.run()
 
-        host2 = Host(2, 5)
-        host_queue.put(host2)
-        host_queue.put(None)
+            self.assertEqual(hotel.rooms[1], 'occupied')
 
-        receptionist.run()
+            host_queue = Queue()
+            receptionist.host_queue = host_queue
 
-        self.assertEqual(len(hotel.free_rooms), 0)
+            host2 = Host(2, 5)
+            host_queue.put(host2)
+            host_queue.put(None)
+
+            receptionist.run()
+
+        self.assertEqual(hotel.rooms[1], 'occupied')
         self.assertEqual(host2.status, "waiting")
+        self.assertIsNone(host2.assigned_room)
 
 
 if __name__ == '__main__':

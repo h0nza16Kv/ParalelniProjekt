@@ -1,6 +1,6 @@
 import threading
 import time
-from host import Host
+from src.host import Host
 import random
 from queue import Empty
 
@@ -32,11 +32,12 @@ class HostProducer(threading.Thread):
 
 
 class Receptionist(threading.Thread):
-    def __init__(self, hotel, host_queue):
+    def __init__(self, hotel, host_queue, executor):
         super().__init__()
         self.hotel = hotel
         self.host_queue = host_queue
         self.running = True
+        self.executor = executor
 
     def run(self):
         """
@@ -65,7 +66,7 @@ class Receptionist(threading.Thread):
             room_number = self.hotel.reserve_room(host)
             if room_number:
                 host.check_in(room_number)
-                threading.Thread(target=self.stay_and_checkout, args=(host, self.hotel)).start()
+                self.executor.submit(self.stay_and_checkout, host, self.hotel)
             else:
                 print(f"\nThe guest {host.host_id} leaving, hotel is full.")
 
