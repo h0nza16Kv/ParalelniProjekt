@@ -1,7 +1,7 @@
 import time
 from queue import Queue
-from hotel import Hotel
-from threads import Receptionist, RoomsMonitor, HostProducer, Cleaner
+from src.hotel import Hotel
+from src.threads import Receptionist, RoomsMonitor, HostProducer, Cleaner
 from concurrent.futures import ThreadPoolExecutor
 
 def main():
@@ -39,7 +39,7 @@ def main():
         for i in receptionists:
             queue.put(None)
 
-        executor.shutdown(wait=True)
+        executor.shutdown(wait=False)
 
         producer.join()
         for r in receptionists:
